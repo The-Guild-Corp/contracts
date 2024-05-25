@@ -18,9 +18,9 @@ Built with [EIP-2535: Diamond](https://eips.ethereum.org/EIPS/eip-2535). The pro
 
 ### Test Included:
 
--   [ x ] Referral System (NexusFacet and TierManager)
+-   [x] Referral System (NexusFacet and TierManager)
 -   [ ] Referral System (Rewarder and TaxManager)
--   [ x ] Account Profiles
+-   [x] Account Profiles
 -   [ ] Quest Factory (TavernFacet)
 -   [ ] Quest Center (QuestFacet)
 -   [ ] Quest Escrows (Native and Token)
@@ -34,8 +34,8 @@ Additional Tests will be added gradually for better context.
 
 ### Context:
 
--   Guild Referral System: The nexus acts as a center for minting profile nfts, creating profiles, and also getting started with the party system by creating a party. Areas to pay attention to here is how the referrals are saved, as we want to track the number of referrals until depth 4. Any inconsistencies to the admin privileged function is also important to take not.
--   Account Profiles: The account profiles is where rewards are submitted to, it is also bound to the profile nft which includes referral data. User would also be able to sign transactions to execute functions. A user's tier can also be updated here. Areas to pay attention to would be the management of the referral data, as well as the execute function.
+-   Guild Referral System: The nexus acts as a center for minting profile nfts, creating profiles, and also getting started with the party system by creating a party.
+-   Account Profiles: The account profiles is where rewards are submitted to, it is also bound to the profile nft which includes referral data. User would also be able to sign transactions to execute functions. A user's tier can also be updated here. 
 -   Quest Factory (TavernFacet): The tavern is in charge of deploying quest contracts. As well as managing the review and extension period.
 -   Quest Centre: Seekers and solvers will primarily be interacting with this contract to make further progress on their quest, or bring up any disputes.
 -   Quest Escrow: Basic escrow functions to hold the funds for a quest.
