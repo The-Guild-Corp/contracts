@@ -20,8 +20,13 @@ library TavernStorage {
         mapping(uint256 => bool) questExists;
         // token address => bool
         mapping(address => bool) whitelistedTokens;
-        // upgrade variables goes below here
+        // Upgrade variables goes below here
         mapping(string => bool) questExists2;
+        uint256 extensionPeriod;
+        uint256 deadlineMultiplier;
+        mapping(string => address) questIdToAddress;
+        bool extendEnabled;
+        bool disputeEnabled;
     }
 
     function tavernStorage() internal pure returns (StorageStruct storage s) {

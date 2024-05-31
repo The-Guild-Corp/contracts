@@ -16,7 +16,7 @@ library QuestStorage {
         bool beingDisputed;
         bool finished;
         bool rewarded;
-        bool withToken;
+        bool released;
         uint256 MAX_EXTENSIONS;
         uint256 extendedCount;
         address escrowImplementation; // native or with token
@@ -27,8 +27,13 @@ library QuestStorage {
         address token;
         uint256 paymentAmount;
         uint256 rewardTime;
+        uint256 deadline;
+        uint256 reviewPeriod;
+        uint256 extensionPeriod;
         address tavern;
         address escrow;
+        uint256 duration;
+        uint256 finishedTime;
     }
 
     function questStorage() internal pure returns (StorageStruct storage s) {

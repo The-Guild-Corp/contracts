@@ -61,6 +61,7 @@ contract TavernFacet is ITavern, IFacet {
         uint256 _paymentAmount,
         string memory infoURI,
         uint256 _maxExtensions,
+        uint256 _duration,
         string memory _questId
     ) external payable onlyBarkeeper whenNotPaused {
         require(
@@ -69,11 +70,12 @@ contract TavernFacet is ITavern, IFacet {
         );
 
         DiamondQuest quest = new DiamondQuest(
-            address(this),
+            LibOwnership._owner(),
             INexus(TavernStorage.tavernStorage().nexus)
                 .getDiamondCutImplementation(),
             TavernStorage.tavernStorage().questImplementation
         );
+
         address taxManager = INexus(TavernStorage.tavernStorage().nexus)
             .getTaxManager();
 
@@ -88,6 +90,9 @@ contract TavernFacet is ITavern, IFacet {
         );
 
         TavernStorage.tavernStorage().questExists2[_questId] = true;
+        TavernStorage.tavernStorage().questIdToAddress[_questId] = address(
+            quest
+        );
 
         IQuest(address(quest)).initialize(
             _seekerId,
@@ -95,6 +100,7 @@ contract TavernFacet is ITavern, IFacet {
             _paymentAmount,
             infoURI,
             _maxExtensions,
+            _duration,
             address(0),
             TavernStorage.tavernStorage().escrowNativeImplementation
         );
@@ -115,6 +121,7 @@ contract TavernFacet is ITavern, IFacet {
         uint256 _paymentAmount,
         string memory infoURI,
         uint256 _maxExtensions,
+        uint256 _duration,
         address _token,
         string memory _questId
     ) external onlyBarkeeper whenNotPaused {
@@ -128,7 +135,7 @@ contract TavernFacet is ITavern, IFacet {
         );
 
         DiamondQuest quest = new DiamondQuest(
-            address(this),
+            LibOwnership._owner(),
             INexus(TavernStorage.tavernStorage().nexus)
                 .getDiamondCutImplementation(),
             TavernStorage.tavernStorage().questImplementation
@@ -148,6 +155,9 @@ contract TavernFacet is ITavern, IFacet {
         );
 
         TavernStorage.tavernStorage().questExists2[_questId] = true;
+        TavernStorage.tavernStorage().questIdToAddress[_questId] = address(
+            quest
+        );
 
         IQuest(address(quest)).initialize(
             _seekerId,
@@ -155,6 +165,7 @@ contract TavernFacet is ITavern, IFacet {
             _paymentAmount,
             infoURI,
             _maxExtensions,
+            _duration,
             _token,
             TavernStorage.tavernStorage().escrowTokenImplementation
         );
@@ -188,6 +199,14 @@ contract TavernFacet is ITavern, IFacet {
         TavernStorage.tavernStorage().reviewPeriod = period;
     }
 
+    function setExtensionPeriod(uint256 period) external onlyOwner {
+        TavernStorage.tavernStorage().extensionPeriod = period;
+    }
+
+    function setDeadlineMultiplier(uint256 multiplier) external onlyOwner {
+        TavernStorage.tavernStorage().deadlineMultiplier = multiplier;
+    }
+
     function setImplementation(
         address implNative,
         address implToken,
@@ -204,6 +223,14 @@ contract TavernFacet is ITavern, IFacet {
     function setWhitelistToken(address _token, bool value) external onlyOwner {
         require(_token != address(0));
         TavernStorage.tavernStorage().whitelistedTokens[_token] = value;
+    }
+
+    function setExtendEnabled(bool value) external onlyOwner {
+        TavernStorage.tavernStorage().extendEnabled = value;
+    }
+
+    function setDisputeEnabled(bool value) external onlyOwner {
+        TavernStorage.tavernStorage().disputeEnabled = value;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -249,23 +276,61 @@ contract TavernFacet is ITavern, IFacet {
         return TavernStorage.tavernStorage().reviewPeriod;
     }
 
+    function extensionPeriod() external view returns (uint256) {
+        return TavernStorage.tavernStorage().extensionPeriod;
+    }
+
+    function deadlineMultiplier() external view returns (uint256) {
+        return TavernStorage.tavernStorage().deadlineMultiplier;
+    }
+
+    function questIdToAddress(
+        string memory questId
+    ) external view returns (address) {
+        return TavernStorage.tavernStorage().questIdToAddress[questId];
+    }
+
+    function escrowNativeImplementation() external view returns (address) {
+        return TavernStorage.tavernStorage().escrowNativeImplementation;
+    }
+
+    function escrowTokenImplementation() external view returns (address) {
+        return TavernStorage.tavernStorage().escrowTokenImplementation;
+    }
+
+    function questImplementation() external view returns (address) {
+        return TavernStorage.tavernStorage().questImplementation;
+    }
+
+    function isTokenWhitelisted(address _token) external view returns (bool) {
+        return TavernStorage.tavernStorage().whitelistedTokens[_token];
+    }
+
+    function isExtendEnabled() external view returns (bool) {
+        return TavernStorage.tavernStorage().extendEnabled;
+    }
+
+    function isDisputeEnabled() external view returns (bool) {
+        return TavernStorage.tavernStorage().disputeEnabled;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             IFacet
     //////////////////////////////////////////////////////////////*/
 
     function pluginSelectors() private pure returns (bytes4[] memory s) {
-        s = new bytes4[](18);
+        s = new bytes4[](32);
         s[0] = bytes4(
             keccak256(
                 bytes(
-                    "createNewQuest(uint32,uint32,uint256,string,uint256,string)"
+                    "createNewQuest(uint32,uint32,uint256,string,uint256,uint256,string)"
                 )
             )
         );
         s[1] = bytes4(
             keccak256(
                 bytes(
-                    "createNewQuest(uint32,uint32,uint256,string,uint256,address,string)"
+                    "createNewQuest(uint32,uint32,uint256,string,uint256,uint256,address,string)"
                 )
             )
         );
@@ -285,6 +350,20 @@ contract TavernFacet is ITavern, IFacet {
         s[15] = ITavern.reviewPeriod.selector;
         s[16] = ITavern.pauseAdmin.selector;
         s[17] = ITavern.unpauseAdmin.selector;
+        s[18] = ITavern.extensionPeriod.selector;
+        s[19] = ITavern.setExtensionPeriod.selector;
+        s[20] = ITavern.deadlineMultiplier.selector;
+        s[21] = ITavern.setDeadlineMultiplier.selector;
+        s[22] = ITavern.questIdToAddress.selector;
+        s[23] = ITavern.escrowNativeImplementation.selector;
+        s[24] = ITavern.escrowTokenImplementation.selector;
+        s[25] = ITavern.questImplementation.selector;
+        s[26] = IFacet.pluginMetadata.selector;
+        s[27] = ITavern.isTokenWhitelisted.selector;
+        s[28] = ITavern.isExtendEnabled.selector;
+        s[29] = ITavern.setExtendEnabled.selector;
+        s[30] = ITavern.isDisputeEnabled.selector;
+        s[31] = ITavern.setDisputeEnabled.selector;
     }
 
     function pluginMetadata()

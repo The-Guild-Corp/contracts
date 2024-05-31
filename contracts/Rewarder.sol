@@ -252,14 +252,14 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
                 platformTreasuryTax
             );
 
-            // Shares tax distribution
+            // Shares tax distribution only supports native tokens for now
             if (party.isPartiesEnabled()) {
-                // If party is enabled, distribute shares tax to party members (loot distributors)
-                address sharesTaxReceiver = party.getIdToLootDistributor(
-                    _solverId
+                // If party is disabled, distribute shares tax to platform treasury
+                _processPayment(
+                    _taxManager.platformTreasury(),
+                    _token,
+                    sharesTax
                 );
-                nexus.notifyPartyReward(_solverId, sharesTax);
-                _processPayment(sharesTaxReceiver, _token, sharesTax);
             } else {
                 // If party is disabled, distribute shares tax to platform treasury
                 _processPayment(
@@ -426,12 +426,9 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
         // Rewards referrers based on referral tax value from derived payment amount from Escrow
         rewardReferrers(seekerHandler, _referralTax, taxRateDivisor, token);
 
-        // Shares tax distribution
+        // Shares tax distribution only supports native tokens for now
         if (party.isPartiesEnabled()) {
-            // If party is enabled, distribute shares tax to party members (loot distributors)
-            address sharesTaxReceiver = party.getIdToLootDistributor(_seekerId);
-            nexus.notifyPartyReward(_seekerId, _sharesTax);
-            _processPayment(sharesTaxReceiver, token, _sharesTax);
+            _processPayment(taxManager.platformTreasury(), token, _sharesTax);
         } else {
             // If party is disabled, distribute shares tax to platform treasury
             _processPayment(taxManager.platformTreasury(), token, _sharesTax);
@@ -674,6 +671,7 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
         uint256 referralRewardsTaxAmount = (taxValue *
             taxManager.referralRewardsTax()) / taxDivisor;
         uint256 leftTax = taxValue - referralRewardsTaxAmount;
+        uint256 referralTax = leftTax;
 
         referrals[0] = IReferralHandler(handler).referredBy();
 
@@ -686,7 +684,7 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
                     firstTier
                 );
 
-                rewards[0] = (leftTax * firstRewardRate) / taxDivisor;
+                rewards[0] = (referralTax * firstRewardRate) / taxDivisor;
                 leftTax -= rewards[0];
             }
 
@@ -701,7 +699,7 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
                         secondTier
                     );
 
-                    rewards[1] = (leftTax * secondRewardRate) / taxDivisor;
+                    rewards[1] = (referralTax * secondRewardRate) / taxDivisor;
                     leftTax -= rewards[1];
                 }
 
@@ -716,7 +714,9 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
                             3,
                             thirdTier
                         );
-                        rewards[2] = (leftTax * thirdRewardRate) / taxDivisor;
+                        rewards[2] =
+                            (referralTax * thirdRewardRate) /
+                            taxDivisor;
                         leftTax -= rewards[2];
                     }
 
@@ -730,7 +730,7 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
                             uint256 fourthRewardRate = taxManager
                                 .getReferralRate(4, fourthTier);
                             rewards[3] =
-                                (leftTax * fourthRewardRate) /
+                                (referralTax * fourthRewardRate) /
                                 taxDivisor;
                             leftTax -= rewards[3];
                         }
