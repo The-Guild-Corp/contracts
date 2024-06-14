@@ -75,13 +75,13 @@ async function profileNFTDeployment(
     nexus: string,
     displayPrints: boolean
 ) {
-    const profileNFT = await deployProfileNFT(
+    const profileFNFT = await deployProfileNFT(
         deployer,
         nexus,
         displayPrints,
         0
     );
-    return profileNFT;
+    return profileFNFT;
 }
 
 async function tavernDiamondDeployment(
@@ -181,6 +181,8 @@ async function setupTavernDiamond(
     tavernDiamond: string,
     nexusDiamond: string,
     reviewPeriod: number,
+    extensionPeriod: number,
+    deadlineMultiplier: number,
     mediator: string,
     implementation: {
         native: string;
@@ -202,6 +204,11 @@ async function setupTavernDiamond(
 
     // Setting review period
     await tavernDiamondContract.setReviewPeriod(reviewPeriod);
+
+    // Setting extension period
+    await tavernDiamondContract.setExtensionPeriod(extensionPeriod);
+
+    await tavernDiamondContract.setDeadlineMultiplier(deadlineMultiplier);
 
     // Setting mediator
     await tavernDiamondContract.setMediator(mediator);
@@ -226,27 +233,27 @@ async function setupTaxManagerTreasuries(
 
     // Setting platform treasury pool
     await taxManager.setPlatformTreasuryPool(
-        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        "0x8Dd4c15e676D6BD68727d08fed0aDB4Cb7362096"
     );
 
     // Setting platform revenue pool
     await taxManager.setPlatformRevenuePool(
-        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        "0x5899a8f3A9eeBc19841d79f32f8bCE5F6Ac0e9fB"
     );
 
     // Setting referral tax treasury
     await taxManager.setReferralTaxTreasury(
-        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        "0x47befB21d899943eAd5511fb6FD17cA82D5B8cf7"
     );
 
     // Setting dispute fees treasury
     await taxManager.setDisputeFeesTreasury(
-        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        "0x6839733c7aEDa1A8b9e99d1f2b2225858C0dBB33"
     );
 
     // Setting participation rewards treasury pool
     await taxManager.setParticipationRewardPool(
-        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        "0x397Ac0Eb73f3676B4646EAc1f0199d72d429D147"
     );
 }
 
@@ -530,6 +537,9 @@ async function setupTierManagerConditions(
 
     // Set ration limit - tier 5
     await tierManager.setRationLimit(5, 6);
+
+    // Set party limit
+    await tierManager.setPartyLimit(100);
 }
 
 async function partyDiamondDeployment(
@@ -632,7 +642,7 @@ async function setupWardenDiamond(
     facets: Facets
 ) {
     const wardenDiamondContract = await ethers.getContractAt(
-        "WardenFacet",
+        "WardenAdminFacet",
         wardenDiamond,
         deployer
     );
@@ -687,7 +697,6 @@ export async function diamond_integration_fixture(deployer: Signer) {
 
     // Deploying the rest of the facets
     const facets = await facetsDeployments(deployer, displayPrints);
-
     // Deploying the Nexus Diamond
     const nexus = await nexusDiamondDeployment(
         deployer,
@@ -762,6 +771,8 @@ export async function diamond_integration_fixture(deployer: Signer) {
         await deployer.getAddress(),
         tavern.target as string,
         nexus.target as string,
+        259200,
+        86400,
         86400,
         await deployer.getAddress(),
         {
@@ -804,6 +815,8 @@ export async function diamond_integration_fixture(deployer: Signer) {
         {
             cutFacet: commonFacets.cutFacet.target as string,
             wardenFacet: facets.warden.target as string,
+            wardenAdminFacet: facets.wardenAdmin.target as string,
+            wardenFactoryFacet: facets.wardenFactory.target as string,
             ownershipFacet: commonFacets.ownership.target as string,
             pausableFacet: commonFacets.pausable.target as string,
         },

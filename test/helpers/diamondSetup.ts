@@ -20,7 +20,9 @@ import {
     Rewarder,
     SafeholdFacet,
     TavernFacet,
+    WardenAdminFacet,
     WardenFacet,
+    WardenFactoryFacet,
 } from "../../typechain-types";
 import { sleep } from "../../test/helpers/utils";
 
@@ -102,6 +104,8 @@ export type Facets = {
     safehold: SafeholdFacet;
     tavern: TavernFacet;
     warden: WardenFacet;
+    wardenAdmin: WardenAdminFacet;
+    wardenFactory: WardenFactoryFacet;
     libFactories: {
         account: any;
         loot: any;
@@ -218,9 +222,6 @@ export async function deployFacets(
 
     const NexusFacet = await ethers.deployContract("NexusFacet", {
         signer: deployer,
-        // libraries: {
-        //     LibAccountFactory: LibAccountFactory.target,
-        // },
     });
 
     await NexusFacet.waitForDeployment();
@@ -281,10 +282,6 @@ export async function deployFacets(
 
     const WardenFacet = await ethers.deployContract("WardenFacet", {
         signer: deployer,
-        // libraries: {
-        //     LibLootDistributorFactory: LibLootDistributor.target,
-        //     LibSafeholdFactory: LibSafeholdFactory.target,
-        // },
     });
 
     await WardenFacet.waitForDeployment();
@@ -294,6 +291,34 @@ export async function deployFacets(
     }
 
     await sleep(timeout);
+
+    const WardenAdminFacet = await ethers.deployContract("WardenAdminFacet", {
+        signer: deployer,
+    });
+
+    await WardenAdminFacet.waitForDeployment();
+
+    if (silent) {
+        console.log("WardenAdminFacet deployed to:", WardenAdminFacet.target);
+    }
+
+    await sleep(timeout);
+
+    const wardenFactoryFacet = await ethers.deployContract(
+        "WardenFactoryFacet",
+        {
+            signer: deployer,
+        }
+    );
+
+    await wardenFactoryFacet.waitForDeployment();
+
+    if (silent) {
+        console.log(
+            "WardenFactoryFacet deployed to:",
+            wardenFactoryFacet.target
+        );
+    }
 
     return {
         account: AccountFacet,
@@ -305,6 +330,8 @@ export async function deployFacets(
         safehold: SafeholdFacet,
         tavern: TavernFacet,
         warden: WardenFacet,
+        wardenAdmin: WardenAdminFacet,
+        wardenFactory: wardenFactoryFacet,
         libFactories: {
             account: LibAccountFactory,
             loot: LibLootDistributor,
@@ -553,6 +580,8 @@ export async function deployPartyDiamond(
 export type WardenParams = {
     cutFacet: string;
     wardenFacet: string;
+    wardenAdminFacet: string;
+    wardenFactoryFacet: string;
     ownershipFacet: string;
     pausableFacet: string;
 };
@@ -571,6 +600,8 @@ export async function deployWardenDiamond(
             deployerAddress,
             facets.cutFacet,
             facets.wardenFacet,
+            facets.wardenAdminFacet,
+            facets.wardenFactoryFacet,
             facets.ownershipFacet,
             facets.pausableFacet,
         ],
