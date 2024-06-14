@@ -3,6 +3,7 @@ pragma solidity 0.8.20;
 
 import {INexus} from "../../interfaces/INexus.sol";
 import {IWarden} from "../warden/interface/IWarden.sol";
+import {IWardenFactory} from "../warden/interface/IWardenFactory.sol";
 import {PartyStorage} from "./storage/PartyStorage.sol";
 import {IFacet} from "../../interfaces/IFacet.sol";
 import {IRewarder} from "../../interfaces/IRewarder.sol";
@@ -89,13 +90,14 @@ contract PartyFacet is IParty {
             "Party:Party exists"
         );
 
-        address safehold = IWarden(PartyStorage.partyStorage().warden)
+        address safehold = IWardenFactory(PartyStorage.partyStorage().warden)
             .createSafehold(_tokenId);
 
         PartyStorage.partyStorage().idToSafehold[_tokenId] = safehold;
 
-        address lootDistributor = IWarden(PartyStorage.partyStorage().warden)
-            .createLootDistributor(_tokenId);
+        address lootDistributor = IWardenFactory(
+            PartyStorage.partyStorage().warden
+        ).createLootDistributor(_tokenId);
 
         PartyStorage.partyStorage().idToLootDistributor[
             _tokenId
@@ -112,6 +114,15 @@ contract PartyFacet is IParty {
         _notifyReward(_tokenId, _amount);
     }
 
+    function notifyRewardToken(
+        uint32 _tokenId,
+        address _token,
+        uint256 _amount
+    ) external override onlyNexus {
+        emit TokenRewardAdded(_tokenId, _token, _amount);
+        _notifyRewardToken(_tokenId, _token, _amount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                             read-functions
     //////////////////////////////////////////////////////////////*/
@@ -126,21 +137,28 @@ contract PartyFacet is IParty {
             "Party: Party does not exist for this Leader"
         );
 
-        uint256 memberRations = PartyStorage.partyStorage().userRations[
-            _partyLeaderTokenId
-        ][_partyMemberTokenId];
+        return
+            lootEligible_ = IWarden(PartyStorage.partyStorage().warden)
+                .getLootEligible(_partyLeaderTokenId, _partyMemberTokenId);
+    }
 
-        uint256 totalRations = PartyStorage.partyStorage().totalRations[
-            _partyLeaderTokenId
-        ];
+    function getLootEligibleToken(
+        uint32 _partyLeaderTokenId,
+        uint32 _partyMemberTokenId,
+        address _token
+    ) external view returns (uint256 lootEligible_) {
+        require(
+            PartyStorage.partyStorage().idToSafehold[_partyLeaderTokenId] !=
+                address(0),
+            "Party: Party does not exist for this Leader"
+        );
 
         return
             lootEligible_ = IWarden(PartyStorage.partyStorage().warden)
-                .getLootEligible(
+                .getLootEligibleToken(
                     _partyLeaderTokenId,
                     _partyMemberTokenId,
-                    totalRations,
-                    memberRations
+                    _token
                 );
     }
 
@@ -181,7 +199,8 @@ contract PartyFacet is IParty {
         uint32 _tokenId,
         uint256 _amount
     ) public view returns (uint256) {
-        uint256 supply = PartyStorage.partyStorage().totalRations[_tokenId];
+        uint256 supply = IWarden(PartyStorage.partyStorage().warden)
+            .getTotalRations(_tokenId);
         return getRationPrice(supply, _amount);
     }
 
@@ -189,7 +208,8 @@ contract PartyFacet is IParty {
         uint32 _tokenId,
         uint256 _amount
     ) public view returns (uint256) {
-        uint256 supply = PartyStorage.partyStorage().totalRations[_tokenId];
+        uint256 supply = IWarden(PartyStorage.partyStorage().warden)
+            .getTotalRations(_tokenId);
         if (supply > 0) {
             return getRationPrice(supply - _amount, _amount);
         }
@@ -237,9 +257,8 @@ contract PartyFacet is IParty {
             "Party: Party does not exist for this Leader"
         );
 
-        uint256 rations = PartyStorage.partyStorage().userRations[
-            _leaderTokenId
-        ][_partyMemberTokenId];
+        uint256 rations = IWarden(PartyStorage.partyStorage().warden)
+            .getMemberRations(_leaderTokenId, _partyMemberTokenId);
 
         return rations;
     }
@@ -253,9 +272,8 @@ contract PartyFacet is IParty {
             "Party: Party does not exist for this Leader"
         );
 
-        uint256 totalRations = PartyStorage.partyStorage().totalRations[
-            _leaderTokenId
-        ];
+        uint256 totalRations = IWarden(PartyStorage.partyStorage().warden)
+            .getTotalRations(_leaderTokenId);
 
         return totalRations;
     }
@@ -282,7 +300,9 @@ contract PartyFacet is IParty {
             "Party: Not the owner of the Party Member"
         );
 
-        uint256 currentTotalRations = getPartyTotalRations(_leaderTokenId);
+        require(_amount > 0, "Party: Amount must be greater than 0");
+
+        _checkPartyRationLimit(_leaderTokenId, _amount);
 
         _checkPartyMemberRationLimit(
             _leaderTokenId,
@@ -300,12 +320,6 @@ contract PartyFacet is IParty {
             tax.partyMemberRewardsTax;
 
         uint256 taxedPrice = price + taxes;
-
-        _updateRationBalanceAfterPurchase(
-            _leaderTokenId,
-            _partyMemberTokenId,
-            _amount
-        );
 
         emit PartyRationsBought(
             _leaderTokenId,
@@ -325,7 +339,6 @@ contract PartyFacet is IParty {
                     _leaderTokenId,
                     _partyMemberTokenId,
                     _amount,
-                    currentTotalRations,
                     price,
                     tax.leaderRewardsTax,
                     tax.referralRewardsTax,
@@ -356,17 +369,12 @@ contract PartyFacet is IParty {
         );
 
         require(
-            PartyStorage.partyStorage().userRations[_leaderTokenId][
-                _partyMemberTokenId
-            ] >= _amount,
+            getMemberPartyRations(_leaderTokenId, _partyMemberTokenId) >=
+                _amount,
             "Party: Not enough rations to sell"
         );
 
-        uint256 currentTotalRations = getPartyTotalRations(_leaderTokenId);
-        uint256 currentMemberRations = getMemberPartyRations(
-            _leaderTokenId,
-            _partyMemberTokenId
-        );
+        require(_amount > 0, "Party: Amount must be greater than 0");
 
         uint256 price = getRationSellPrice(_leaderTokenId, _amount);
         Tax memory tax = calculateTax(price);
@@ -375,12 +383,6 @@ contract PartyFacet is IParty {
             tax.referralRewardsTax +
             tax.platformRevenueTax +
             tax.partyMemberRewardsTax;
-
-        _updateRationBalanceAfterSell(
-            _leaderTokenId,
-            _partyMemberTokenId,
-            _amount
-        );
 
         emit PartyRationsSold(
             _leaderTokenId,
@@ -400,8 +402,6 @@ contract PartyFacet is IParty {
                     _leaderTokenId,
                     _partyMemberTokenId,
                     _amount,
-                    currentTotalRations,
-                    currentMemberRations,
                     price,
                     tax.leaderRewardsTax,
                     tax.referralRewardsTax,
@@ -431,23 +431,43 @@ contract PartyFacet is IParty {
             "Party: Not the Party Member"
         );
 
-        uint256 memberRations = PartyStorage.partyStorage().userRations[
-            _partyLeaderTokenId
-        ][_partyMemberTokenId];
-
-        uint256 totalRations = PartyStorage.partyStorage().totalRations[
-            _partyLeaderTokenId
-        ];
-
         uint256 lootClaimed = IWarden(PartyStorage.partyStorage().warden)
             .claimLoot(
                 _partyLeaderTokenId,
                 _partyMemberTokenId,
+                IReferralHandler(_getTokenHandler(_partyMemberTokenId))
+                    .nftOwner()
+            );
+
+        emit LootClaimed(_partyLeaderTokenId, _partyMemberTokenId, lootClaimed);
+    }
+
+    function claimLootToken(
+        uint32 _partyLeaderTokenId,
+        uint32 _partyMemberTokenId,
+        address _token
+    ) external whenNotPaused {
+        require(
+            PartyStorage.partyStorage().idToSafehold[_partyLeaderTokenId] !=
+                address(0),
+            "Party: Party does not exist for this Leader"
+        );
+
+        require(
+            msg.sender ==
+                IReferralHandler(_getTokenHandler(_partyMemberTokenId))
+                    .nftOwner(),
+            "Party: Not the Party Member"
+        );
+
+        uint256 lootClaimed = IWarden(PartyStorage.partyStorage().warden)
+            .claimLootToken(
+                _partyLeaderTokenId,
+                _partyMemberTokenId,
+                _token,
                 INexus(PartyStorage.partyStorage().nexus).getHandler(
                     _partyMemberTokenId
-                ),
-                totalRations,
-                memberRations
+                )
             );
 
         emit LootClaimed(_partyLeaderTokenId, _partyMemberTokenId, lootClaimed);
@@ -481,66 +501,15 @@ contract PartyFacet is IParty {
             );
     }
 
-    function _updateRationBalanceAfterPurchase(
-        uint32 _leaderTokenId,
-        uint32 _partyMemberTokenId,
-        uint256 _amount
-    ) internal {
-        // Gets the current balance of rations a party member has with a leader
-        uint256 balance = PartyStorage.partyStorage().userRations[
-            _leaderTokenId
-        ][_partyMemberTokenId];
-
-        // Updates the balance of rations a party member has with a leader
-        PartyStorage.partyStorage().userRations[_leaderTokenId][
-            _partyMemberTokenId
-        ] = balance + _amount;
-
-        // Gets the current total supply of rations a leader has
-        uint256 supply = PartyStorage.partyStorage().totalRations[
-            _leaderTokenId
-        ];
-
-        // Updates the total supply of rations a leader has
-        PartyStorage.partyStorage().totalRations[_leaderTokenId] =
-            supply +
-            _amount;
-    }
-
-    function _updateRationBalanceAfterSell(
-        uint32 _leaderTokenId,
-        uint32 _partyMemberTokenId,
-        uint256 _amount
-    ) internal {
-        // Gets the current balance of rations a party member has with a leader
-        uint256 balance = PartyStorage.partyStorage().userRations[
-            _leaderTokenId
-        ][_partyMemberTokenId];
-
-        // Updates the balance of rations a party member has with a leader
-        PartyStorage.partyStorage().userRations[_leaderTokenId][
-            _partyMemberTokenId
-        ] = balance - _amount;
-
-        // Gets the current total supply of rations a leader has
-        uint256 supply = PartyStorage.partyStorage().totalRations[
-            _leaderTokenId
-        ];
-
-        // Updates the total supply of rations a leader has
-        PartyStorage.partyStorage().totalRations[_leaderTokenId] =
-            supply -
-            _amount;
-    }
-
     function _checkPartyMemberRationLimit(
         uint32 _leaderTokenId,
         uint32 _partyMemberTokenId,
         uint256 _amount
     ) internal view {
-        uint256 balance = PartyStorage.partyStorage().userRations[
-            _leaderTokenId
-        ][_partyMemberTokenId];
+        uint256 balance = getMemberPartyRations(
+            _leaderTokenId,
+            _partyMemberTokenId
+        );
 
         address handler = _getTokenHandler(_partyMemberTokenId);
         uint8 tier = IReferralHandler(handler).getTier();
@@ -549,6 +518,18 @@ contract PartyFacet is IParty {
             balance + _amount <=
                 ITierManager(_getTierManager()).getRationLimit(tier),
             "Party: Party member has reached their ration limit"
+        );
+    }
+
+    function _checkPartyRationLimit(
+        uint32 _leaderTokenId,
+        uint256 _amount
+    ) internal view {
+        uint256 supply = getPartyTotalRations(_leaderTokenId);
+
+        require(
+            supply + _amount <= ITierManager(_getTierManager()).getPartyLimit(),
+            "Party: Party has reached their ration limit"
         );
     }
 
@@ -585,12 +566,29 @@ contract PartyFacet is IParty {
         );
     }
 
+    function _notifyRewardToken(
+        uint32 _tokenId,
+        address _token,
+        uint256 _amount
+    ) internal {
+        require(
+            PartyStorage.partyStorage().idToSafehold[_tokenId] != address(0),
+            "Party: Party does not exist for this Leader"
+        );
+
+        IWarden(PartyStorage.partyStorage().warden).notifyRewardToken(
+            _tokenId,
+            _token,
+            _amount
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                              IFacet
     //////////////////////////////////////////////////////////////*/
 
     function pluginSelectors() private pure returns (bytes4[] memory s) {
-        s = new bytes4[](24);
+        s = new bytes4[](27);
         s[0] = IParty.setWarden.selector;
         s[1] = IParty.setNexus.selector;
         s[2] = IParty.pauseAdmin.selector;
@@ -615,6 +613,9 @@ contract PartyFacet is IParty {
         s[21] = IParty.claimLoot.selector;
         s[22] = PartyFacet.pluginMetadata.selector;
         s[23] = IParty.getLootEligible.selector;
+        s[24] = IParty.getLootEligibleToken.selector;
+        s[25] = IParty.notifyRewardToken.selector;
+        s[26] = IParty.claimLootToken.selector;
     }
 
     function pluginMetadata()

@@ -9,4 +9,6 @@ interface ITierManager {
     ) external returns (bool);
 
     function getRationLimit(uint8 tier) external view returns (uint256);
+
+    function getPartyLimit() external view returns (uint256);
 }

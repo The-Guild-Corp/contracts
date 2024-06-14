@@ -227,19 +227,19 @@ contract QuestFacet is IQuest, IFacet {
         QuestStorage.StorageStruct storage s = QuestStorage.questStorage();
         require(!s.beingDisputed, "Is under dispute");
         require(!s.rewarded, "Rewarded before");
-
-        if (s.finished) {
-            require(s.rewardTime > block.timestamp, "Release: Too late");
-        } else {
-            require(
-                s.deadline + s.reviewPeriod > block.timestamp,
-                "Release: Too late"
-            );
-        }
-
-        emit RewardsReleased(s.seekerId, s.solverId, block.timestamp);
+        require(!s.released, "Reward released");
 
         s.released = true;
+        s.rewarded = true;
+
+        emit RewardReceivedAndReleased(
+            s.seekerId,
+            s.solverId,
+            s.paymentAmount,
+            block.timestamp
+        );
+
+        IEscrow(s.escrow).processPayment();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -286,6 +286,7 @@ contract QuestFacet is IQuest, IFacet {
         QuestStorage.StorageStruct storage s = QuestStorage.questStorage();
         require(s.started, "Quest not started");
         require(!s.rewarded, "Rewarded before");
+        require(!s.released, "Reward released");
         require(!s.beingDisputed, "Is under dispute");
 
         if (s.finished) {

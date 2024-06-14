@@ -124,4 +124,10 @@ interface INexus {
     function guardianUnpause() external;
 
     function notifyPartyReward(uint32 _tokenId, uint256 _amount) external;
+
+    function notifyPartyRewardToken(
+        uint32 _tokenId,
+        address _token,
+        uint256 _amount
+    ) external;
 }

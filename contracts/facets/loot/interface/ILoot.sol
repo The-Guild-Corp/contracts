@@ -7,4 +7,6 @@ interface ILoot {
     //////////////////////////////////////////////////////////////*/
 
     function lootTransfer(uint256 _amount) external;
+
+    function lootTransferToken(address _token, uint256 _amount) external;
 }

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GNU AGPLv3
 pragma solidity 0.8.20;
 
-import {IParty} from "../party/interface/IParty.sol";
 import {IWarden} from "./interface/IWarden.sol";
 import {WardenStorage} from "./storage/WardenStorage.sol";
 import {LibOwnership} from "../ownership/LibOwnership.sol";
@@ -11,11 +10,12 @@ import {IRewarder} from "../../interfaces/IRewarder.sol";
 import {ILoot} from "../loot/interface/ILoot.sol";
 import {IFacet} from "../../interfaces/IFacet.sol";
 import {LibPausable} from "../pauseable/LibPausable.sol";
-import {LibLootDistributorFactory} from "../factory/LibLootDistributorFactory.sol";
-import {LibSafeholdFactory} from "../factory/LibSafeholdFactory.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract WardenFacet is IWarden, IFacet {
+    using SafeERC20 for IERC20;
+
     /*//////////////////////////////////////////////////////////////
                                  WARDEN
     //////////////////////////////////////////////////////////////*/
@@ -32,172 +32,25 @@ contract WardenFacet is IWarden, IFacet {
         _;
     }
 
-    modifier onlyOwner() {
-        require(
-            msg.sender == LibOwnership._owner(),
-            "Warden: Only Owner can call this function"
-        );
-        _;
-    }
-
-    modifier onlyChief() {
-        require(
-            msg.sender == WardenStorage.wardenStorage().chief,
-            "Warden: Only Chief can call this function"
-        );
-        _;
-    }
-
     modifier whenNotPaused() {
         require(!LibPausable._paused(), "Warden: Contract is paused");
         _;
     }
 
     /*//////////////////////////////////////////////////////////////
-                                Only-Owner
-    //////////////////////////////////////////////////////////////*/
-
-    function setParty(address _party) external override onlyOwner {
-        WardenStorage.wardenStorage().party = _party;
-    }
-
-    function setChief(address _chief) external override onlyOwner {
-        WardenStorage.wardenStorage().chief = _chief;
-    }
-
-    function setRewarder(address _rewarder) external override onlyOwner {
-        WardenStorage.wardenStorage().rewarder = _rewarder;
-    }
-
-    function setRationPriceManager(
-        address _rationPriceManager
-    ) external override onlyOwner {
-        WardenStorage.wardenStorage().rationPriceManager = _rationPriceManager;
-    }
-
-    function setDiamondCutImplementation(
-        address _diamondCutImplementation
-    ) external override onlyOwner {
-        WardenStorage
-            .wardenStorage()
-            .diamondCutImplementation = _diamondCutImplementation;
-    }
-
-    function setDiamondSafeholdFacet(
-        address _diamondSafeholdFacet
-    ) external override onlyOwner {
-        WardenStorage
-            .wardenStorage()
-            .diamondSafeholdFacet = _diamondSafeholdFacet;
-    }
-
-    function setDiamondLootFacet(
-        address _diamondLootFacet
-    ) external override onlyOwner {
-        WardenStorage.wardenStorage().diamondLootFacet = _diamondLootFacet;
-    }
-
-    function setDiamondOwnershipFacet(
-        address _diamondOwnershipFacet
-    ) external override onlyOwner {
-        WardenStorage
-            .wardenStorage()
-            .diamondOwnershipFacet = _diamondOwnershipFacet;
-    }
-
-    function setDiamondPausableFacet(
-        address _diamondPausableFacet
-    ) external override onlyOwner {
-        WardenStorage
-            .wardenStorage()
-            .diamondPausableFacet = _diamondPausableFacet;
-    }
-
-    function setDiamondLoupeFacet(
-        address _diamondLoupeFacet
-    ) external override onlyOwner {
-        WardenStorage.wardenStorage().diamondLoupeFacet = _diamondLoupeFacet;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                Only-Chief
-    //////////////////////////////////////////////////////////////*/
-
-    function pauseChief() external onlyChief {
-        LibPausable._pause();
-    }
-
-    function unpauseChief() external onlyChief {
-        LibPausable._unpause();
-    }
-
-    /*//////////////////////////////////////////////////////////////
                                 Only-Party
     //////////////////////////////////////////////////////////////*/
-
-    function createSafehold(
-        uint32 _tokenId
-    ) external onlyParty whenNotPaused returns (address) {
-        require(
-            WardenStorage.wardenStorage().diamondSafeholdFacet != address(0) &&
-                WardenStorage.wardenStorage().diamondCutImplementation !=
-                address(0) &&
-                WardenStorage.wardenStorage().diamondOwnershipFacet !=
-                address(0) &&
-                WardenStorage.wardenStorage().diamondLoupeFacet != address(0),
-            "Warden:Facets not set"
-        );
-        require(
-            WardenStorage.wardenStorage().safeholds[_tokenId] == address(0),
-            "Warden:Safehold exists"
-        );
-
-        address safehold = LibSafeholdFactory.deploySafehold(
-            address(this),
-            LibOwnership._owner()
-        );
-
-        WardenStorage.wardenStorage().safeholds[_tokenId] = safehold;
-
-        return safehold;
-    }
-
-    function createLootDistributor(
-        uint32 _tokenId
-    ) external onlyParty whenNotPaused returns (address) {
-        require(
-            WardenStorage.wardenStorage().diamondLootFacet != address(0) &&
-                WardenStorage.wardenStorage().diamondCutImplementation !=
-                address(0) &&
-                WardenStorage.wardenStorage().diamondOwnershipFacet !=
-                address(0) &&
-                WardenStorage.wardenStorage().diamondLoupeFacet != address(0),
-            "Warden:Facets not set"
-        );
-        require(
-            WardenStorage.wardenStorage().lootDistributors[_tokenId] ==
-                address(0),
-            "Warden:LootDistributor exists"
-        );
-
-        address lootDistributor = LibLootDistributorFactory
-            .deployLootDistributor(address(this), LibOwnership._owner());
-
-        WardenStorage.wardenStorage().lootDistributors[
-            _tokenId
-        ] = lootDistributor;
-
-        return lootDistributor;
-    }
 
     function purchaseRation(
         IWarden.RationPurchase memory purchase
     ) public payable onlyParty whenNotPaused {
+        // Gets the total tax for the ration purchase
         uint256 totalTax = purchase.leaderRewardsTax +
             purchase.referralRewardsTax +
             purchase.platformRevenueTax +
             purchase.partyMemberRewardsTax;
 
+        // Gets the total price for the ration purchase
         uint256 totalPrice = purchase.price + totalTax;
 
         address safehold = WardenStorage.wardenStorage().safeholds[
@@ -208,39 +61,76 @@ contract WardenFacet is IWarden, IFacet {
             .wardenStorage()
             .lootDistributors[purchase.leaderTokenId];
 
+        // Increase the safehold balance
         WardenStorage.wardenStorage().safeholdTokenBalances[
             safehold
         ] += purchase.price;
 
-        WardenStorage.wardenStorage().lootRewards[lootDistributor] += purchase
-            .partyMemberRewardsTax;
+        // Get the total ration for a loot distributor
+        uint256 currentMemberRations = WardenStorage
+            .wardenStorage()
+            .memberRationsAmount[
+                WardenStorage.wardenStorage().lootDistributors[
+                    purchase.leaderTokenId
+                ]
+            ][purchase.memberTokenId];
 
-        // Calculates the amount of rewards offset to add based on the current ratio before adding new rations
-        // The ratio of rewardsOffset/increaseRation is the same as totalLoot/totalRations for the party
-        // The rewardOffset will be deducted later when calculating the member's owed loot
-
-        // Rounds up in favour of the protocols
-        uint256 rewardOffsetToAdd = 0;
-
-        if (purchase.currentTotalRations > 0) {
-            rewardOffsetToAdd = Math.ceilDiv(
-                WardenStorage.wardenStorage().lootRewards[lootDistributor] *
-                    purchase.amount,
-                purchase.currentTotalRations
-            );
-        } else {
-            rewardOffsetToAdd = WardenStorage.wardenStorage().lootRewards[
+        // If the total ration is 0, then the member is a new member
+        if (currentMemberRations == 0) {
+            // Goes through the current loot distributer holders and checks if any members are not holding any rations, due to selling
+            (bool update, uint256 updateIndex) = _checkLootRationCountIndex(
                 lootDistributor
-            ];
+            );
+
+            // If there is a member that is not holding any rations, then update the member with the new member token id
+            if (update) {
+                WardenStorage.wardenStorage().lootRationHolder[lootDistributor][
+                        updateIndex
+                    ] = purchase.memberTokenId;
+            } else {
+                // If there are no members that are not holding any rations, then add the new member token id to the list
+                uint256 lootRationCount = WardenStorage
+                    .wardenStorage()
+                    .lootRationHoldersCount[lootDistributor];
+
+                WardenStorage.wardenStorage().lootRationHolder[lootDistributor][
+                        lootRationCount
+                    ] = purchase.memberTokenId;
+
+                WardenStorage.wardenStorage().lootRationHoldersCount[
+                    lootDistributor
+                ]++;
+            }
         }
 
+        // Increase the member rations amount
+        WardenStorage.wardenStorage().memberRationsAmount[
+            WardenStorage.wardenStorage().lootDistributors[
+                purchase.leaderTokenId
+            ]
+        ][purchase.memberTokenId] += purchase.amount;
+
+        // Increase the total rations for the loot distributor
+        WardenStorage.wardenStorage().lootTotalRations[
+            lootDistributor
+        ] += purchase.amount;
+
+        // Update the rewards for the leaders holders
+        _updateTaxRewards(
+            purchase.leaderTokenId,
+            purchase.partyMemberRewardsTax
+        );
+
+        // Update native rewards for the holder
+        _updateNativeReward(purchase.leaderTokenId, purchase.memberTokenId);
+
+        // Update token rewards for the holder
+        _updateTokenReward(purchase.leaderTokenId, purchase.memberTokenId);
+
+        // Set the ration holder rewardsOffset to the current rewards
         WardenStorage.wardenStorage().lootRewardsOffset[lootDistributor][
                 purchase.memberTokenId
-            ] += rewardOffsetToAdd;
-
-        WardenStorage.wardenStorage().lootRewards[
-            lootDistributor
-        ] += rewardOffsetToAdd;
+            ] = WardenStorage.wardenStorage().lootRewards[lootDistributor];
 
         {
             require(msg.value == totalPrice, "Warden: Invalid payment amount");
@@ -281,10 +171,33 @@ contract WardenFacet is IWarden, IFacet {
         WardenStorage.wardenStorage().safeholdTokenBalances[safehold] -= sell
             .price;
 
-        _calculateLoot(sell);
+        // Update native rewards for the holder
+        _updateNativeReward(sell.leaderTokenId, sell.memberTokenId);
 
-        WardenStorage.wardenStorage().lootRewards[lootDistributor] += sell
-            .partyMemberRewardsTax;
+        // Update token rewards for the holder
+        _updateTokenReward(sell.leaderTokenId, sell.memberTokenId);
+
+        WardenStorage.wardenStorage().memberRationsAmount[
+            WardenStorage.wardenStorage().lootDistributors[sell.leaderTokenId]
+        ][sell.memberTokenId] -= sell.amount;
+
+        WardenStorage.wardenStorage().lootTotalRations[lootDistributor] -= sell
+            .amount;
+
+        _updateTaxRewards(sell.leaderTokenId, sell.partyMemberRewardsTax);
+
+        // If there are no ration holders, send the reward to the lootRewards for the first user that buys the key again
+        if (
+            WardenStorage.wardenStorage().lootTotalRations[lootDistributor] == 0
+        ) {
+            WardenStorage.wardenStorage().lootRewards[lootDistributor] += sell
+                .partyMemberRewardsTax;
+        }
+
+        // Set the ration holder rewardsOffset to the current rewards
+        WardenStorage.wardenStorage().lootRewardsOffset[lootDistributor][
+                sell.memberTokenId
+            ] = WardenStorage.wardenStorage().lootRewards[lootDistributor];
 
         {
             uint256 balance = address(safehold).balance;
@@ -319,24 +232,79 @@ contract WardenFacet is IWarden, IFacet {
     function claimLoot(
         uint32 _partyLeaderTokenId,
         uint32 _partyMemberTokenId,
-        address _memberHandler,
-        uint256 _totalRations,
-        uint256 _partyMemberRations
+        address _memberOwner
     ) public onlyParty whenNotPaused returns (uint256) {
         uint256 pendingLoot = calculatePartyLoot(
             _partyLeaderTokenId,
             _partyMemberTokenId,
-            _totalRations,
-            _partyMemberRations
+            getTotalRations(_partyLeaderTokenId),
+            getMemberRations(_partyLeaderTokenId, _partyMemberTokenId),
+            address(0)
         );
 
-        // Increase the rewardsOffset for the member, as they have claimed their loot
+        // Reduce rewards from the lootMemberRewards since it has all been claimed
+        WardenStorage.wardenStorage().lootMemberRewards[
+            WardenStorage.wardenStorage().lootDistributors[_partyLeaderTokenId]
+        ][_partyMemberTokenId] = 0;
+
+        // Add to offset since reward has been claimed
         WardenStorage.wardenStorage().lootRewardsOffset[
             WardenStorage.wardenStorage().lootDistributors[_partyLeaderTokenId]
-        ][_partyMemberTokenId] += pendingLoot;
+        ][_partyMemberTokenId] = WardenStorage.wardenStorage().lootRewards[
+            WardenStorage.wardenStorage().lootDistributors[_partyLeaderTokenId]
+        ];
 
         if (pendingLoot > 0) {
-            _lootTransfer(_partyLeaderTokenId, pendingLoot, _memberHandler);
+            _lootTransfer(
+                _partyLeaderTokenId,
+                pendingLoot,
+                _memberOwner,
+                address(0)
+            );
+
+            return pendingLoot;
+        }
+
+        return 0;
+    }
+
+    function claimLootToken(
+        uint32 _partyLeaderTokenId,
+        uint32 _partyMemberTokenId,
+        address _token,
+        address _memberHandler
+    ) public onlyParty whenNotPaused returns (uint256) {
+        uint256 pendingLoot = calculatePartyLoot(
+            _partyLeaderTokenId,
+            _partyMemberTokenId,
+            getTotalRations(_partyLeaderTokenId),
+            getMemberRations(_partyLeaderTokenId, _partyMemberTokenId),
+            _token
+        );
+
+        // Reduce rewards from the lootMemberTokenRewards since it has all been claimed
+        WardenStorage.wardenStorage().lootMemberTokenRewards[
+            WardenStorage.wardenStorage().lootDistributors[_partyLeaderTokenId]
+        ][_token][_partyMemberTokenId] = 0;
+
+        // Add to offset since reward has been claimed
+        WardenStorage.wardenStorage().lootTokenRewardsOffset[
+            WardenStorage.wardenStorage().lootDistributors[_partyLeaderTokenId]
+        ][_token][_partyMemberTokenId] = WardenStorage
+            .wardenStorage()
+            .lootTokenRewards[
+                WardenStorage.wardenStorage().lootDistributors[
+                    _partyLeaderTokenId
+                ]
+            ][_token];
+
+        if (pendingLoot > 0) {
+            _lootTransfer(
+                _partyLeaderTokenId,
+                pendingLoot,
+                _memberHandler,
+                _token
+            );
 
             return pendingLoot;
         }
@@ -348,10 +316,32 @@ contract WardenFacet is IWarden, IFacet {
         uint32 _tokenId,
         uint256 _amount
     ) external override onlyParty {
-        // Increase reward amount
+        // Increase reward amount from other sources thats not from tax
         WardenStorage.wardenStorage().lootRewards[
             WardenStorage.wardenStorage().lootDistributors[_tokenId]
         ] += _amount;
+    }
+
+    function notifyRewardToken(
+        uint32 _tokenId,
+        address _token,
+        uint256 _amount
+    ) external override onlyParty {
+        // Check if token exists
+        bool tokenExists = WardenStorage.wardenStorage().tokenExistence[_token];
+
+        if (!tokenExists) {
+            WardenStorage.wardenStorage().lootToken[
+                WardenStorage.wardenStorage().lootTokenCount
+            ] = _token;
+            WardenStorage.wardenStorage().tokenExistence[_token] = true;
+            WardenStorage.wardenStorage().lootTokenCount++;
+        }
+
+        // Increase reward amount
+        WardenStorage.wardenStorage().lootTokenRewards[
+            WardenStorage.wardenStorage().lootDistributors[_tokenId]
+        ][_token] += _amount;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -427,18 +417,77 @@ contract WardenFacet is IWarden, IFacet {
         return WardenStorage.wardenStorage().diamondLoupeFacet;
     }
 
+    function getMemberRations(
+        uint32 _partyLeaderTokenId,
+        uint32 _partyMemberTokenId
+    ) public view override returns (uint256) {
+        return
+            WardenStorage.wardenStorage().memberRationsAmount[
+                WardenStorage.wardenStorage().lootDistributors[
+                    _partyLeaderTokenId
+                ]
+            ][_partyMemberTokenId];
+    }
+
+    function getTotalRations(
+        uint32 _tokenId
+    ) public view override returns (uint256) {
+        return
+            WardenStorage.wardenStorage().lootTotalRations[
+                WardenStorage.wardenStorage().lootDistributors[_tokenId]
+            ];
+    }
+
     function getLootEligible(
         uint32 _partyLeaderTokenId,
-        uint32 _partyMemberTokenId,
-        uint256 _totalRations,
-        uint256 _partyMemberRations
+        uint32 _partyMemberTokenId
     ) external view override returns (uint256 pendingLoot_) {
+        uint256 totalRations = WardenStorage.wardenStorage().lootTotalRations[
+            WardenStorage.wardenStorage().lootDistributors[_partyLeaderTokenId]
+        ];
+
+        uint256 memberRations = WardenStorage
+            .wardenStorage()
+            .memberRationsAmount[
+                WardenStorage.wardenStorage().lootDistributors[
+                    _partyLeaderTokenId
+                ]
+            ][_partyMemberTokenId];
+
         return
             pendingLoot_ = calculatePartyLoot(
                 _partyLeaderTokenId,
                 _partyMemberTokenId,
-                _totalRations,
-                _partyMemberRations
+                totalRations,
+                memberRations,
+                address(0)
+            );
+    }
+
+    function getLootEligibleToken(
+        uint32 _partyLeaderTokenId,
+        uint32 _partyMemberTokenId,
+        address _token
+    ) external view override returns (uint256 pendingLoot_) {
+        uint256 totalRations = WardenStorage.wardenStorage().lootTotalRations[
+            WardenStorage.wardenStorage().lootDistributors[_partyLeaderTokenId]
+        ];
+
+        uint256 memberRations = WardenStorage
+            .wardenStorage()
+            .memberRationsAmount[
+                WardenStorage.wardenStorage().lootDistributors[
+                    _partyLeaderTokenId
+                ]
+            ][_partyMemberTokenId];
+
+        return
+            pendingLoot_ = calculatePartyLoot(
+                _partyLeaderTokenId,
+                _partyMemberTokenId,
+                totalRations,
+                memberRations,
+                _token
             );
     }
 
@@ -446,21 +495,194 @@ contract WardenFacet is IWarden, IFacet {
                                 Internal
     //////////////////////////////////////////////////////////////*/
 
-    function _calculateLoot(IWarden.RationSell memory sell) internal {
-        uint256 pendingLoot = calculatePartyLoot(
-            sell.leaderTokenId,
-            sell.memberTokenId,
-            sell.currentTotalRations,
-            sell.currentMemberRations
-        );
+    // Update token reward for holder
+    function _updateTokenReward(
+        uint32 _leaderTokenId,
+        uint32 _memberTokenId
+    ) internal {
+        uint256 lootTokenCount = WardenStorage.wardenStorage().lootTokenCount;
 
-        // Increase the rewardsOffset for the member, as they have claimed their loot
-        WardenStorage.wardenStorage().lootRewardsOffset[
-            WardenStorage.wardenStorage().lootDistributors[sell.leaderTokenId]
-        ][sell.memberTokenId] += pendingLoot;
+        // Get the total rations for the loot distributor
+        uint256 lootTotalRations = WardenStorage
+            .wardenStorage()
+            .lootTotalRations[
+                WardenStorage.wardenStorage().lootDistributors[_leaderTokenId]
+            ];
 
-        if (pendingLoot > 0) {
-            _lootTransfer(sell.leaderTokenId, pendingLoot, sell.receiver);
+        uint256 memberRations = WardenStorage
+            .wardenStorage()
+            .memberRationsAmount[
+                WardenStorage.wardenStorage().lootDistributors[_leaderTokenId]
+            ][_memberTokenId];
+
+        // Go through all registered tokens and update the rewards for the member
+        for (uint256 i = 0; i < lootTokenCount; i++) {
+            address token = WardenStorage.wardenStorage().lootToken[i];
+
+            uint256 tokenReward = WardenStorage
+                .wardenStorage()
+                .lootTokenRewards[
+                    WardenStorage.wardenStorage().lootDistributors[
+                        _leaderTokenId
+                    ]
+                ][token];
+
+            uint256 tokenOffset = WardenStorage
+                .wardenStorage()
+                .lootTokenRewardsOffset[
+                    WardenStorage.wardenStorage().lootDistributors[
+                        _leaderTokenId
+                    ]
+                ][token][_memberTokenId];
+
+            // If the token reward is 0, then continue to the next token
+            if (tokenReward == 0) {
+                continue;
+            }
+
+            if (tokenOffset > 0) {
+                // Get the new token rewards
+                uint256 newTokenRewards = tokenReward - tokenOffset;
+
+                // Gets the user share of the new token rewards
+                uint256 rewardShare = (newTokenRewards * memberRations) /
+                    lootTotalRations;
+
+                // Increase the rewards for the member
+                WardenStorage.wardenStorage().lootMemberTokenRewards[
+                    WardenStorage.wardenStorage().lootDistributors[
+                        _leaderTokenId
+                    ]
+                ][token][_memberTokenId] += rewardShare;
+
+                // Increase the rewardsOffset for the member
+                WardenStorage.wardenStorage().lootTokenRewardsOffset[
+                    WardenStorage.wardenStorage().lootDistributors[
+                        _leaderTokenId
+                    ]
+                ][token][_memberTokenId] = tokenReward;
+
+                // Decrease the amount of the token rewards by the share
+                WardenStorage.wardenStorage().lootTokenRewards[
+                    WardenStorage.wardenStorage().lootDistributors[
+                        _leaderTokenId
+                    ]
+                ][token] -= rewardShare;
+            } else {
+                WardenStorage.wardenStorage().lootTokenRewardsOffset[
+                    WardenStorage.wardenStorage().lootDistributors[
+                        _leaderTokenId
+                    ]
+                ][token][_memberTokenId] = tokenReward;
+            }
+        }
+    }
+
+    // Update native reward for holder
+    function _updateNativeReward(
+        uint32 _leaderTokenId,
+        uint32 _memberTokenId
+    ) internal {
+        // Get the total rations for the loot distributor
+        uint256 lootTotalRations = WardenStorage
+            .wardenStorage()
+            .lootTotalRations[
+                WardenStorage.wardenStorage().lootDistributors[_leaderTokenId]
+            ];
+
+        uint256 memberRations = WardenStorage
+            .wardenStorage()
+            .memberRationsAmount[
+                WardenStorage.wardenStorage().lootDistributors[_leaderTokenId]
+            ][_memberTokenId];
+
+        // Get the total rewards
+        uint256 rewards = WardenStorage.wardenStorage().lootRewards[
+            WardenStorage.wardenStorage().lootDistributors[_leaderTokenId]
+        ];
+
+        // Get the rewards offset for the member
+        uint256 rewardsOffset = WardenStorage.wardenStorage().lootRewardsOffset[
+            WardenStorage.wardenStorage().lootDistributors[_leaderTokenId]
+        ][_memberTokenId];
+
+        // If the rewards offset is higher than the actual rewards, then return
+        if (rewardsOffset > rewards) {
+            return;
+        }
+
+        // Get the unseen rewards derived from other sources thats not from taxes
+        uint256 unseenRewards = rewards - rewardsOffset;
+
+        // Determines share of unseen rewards
+        uint256 userRewards = (unseenRewards * memberRations) /
+            lootTotalRations;
+
+        // Increase the rewards for the member
+        WardenStorage.wardenStorage().lootMemberRewards[
+            WardenStorage.wardenStorage().lootDistributors[_leaderTokenId]
+        ][_memberTokenId] += userRewards;
+
+        // Decrease the rewards for the loot distributor
+        WardenStorage.wardenStorage().lootRewards[
+            WardenStorage.wardenStorage().lootDistributors[_leaderTokenId]
+        ] -= userRewards;
+    }
+
+    // Updates the rewards for the leaders holders, with an amount
+    function _updateTaxRewards(
+        uint32 _partyLeaderTokenId,
+        uint256 _rewards
+    ) internal {
+        // Get the total rations holders for the loot distributor
+        uint256 lootRationHolderCount = WardenStorage
+            .wardenStorage()
+            .lootRationHoldersCount[
+                WardenStorage.wardenStorage().lootDistributors[
+                    _partyLeaderTokenId
+                ]
+            ];
+
+        // Get the total rations for the loot distributor
+        uint256 lootTotalRations = WardenStorage
+            .wardenStorage()
+            .lootTotalRations[
+                WardenStorage.wardenStorage().lootDistributors[
+                    _partyLeaderTokenId
+                ]
+            ];
+
+        // Loop through all current holders and update their rewards
+        for (uint256 i = 0; i < lootRationHolderCount; i++) {
+            // Gets indexed member token id
+            uint32 memberTokenId = WardenStorage
+                .wardenStorage()
+                .lootRationHolder[
+                    WardenStorage.wardenStorage().lootDistributors[
+                        _partyLeaderTokenId
+                    ]
+                ][i];
+
+            // Gets the rations amount for the member
+            uint256 rationsAmount = WardenStorage
+                .wardenStorage()
+                .memberRationsAmount[
+                    WardenStorage.wardenStorage().lootDistributors[
+                        _partyLeaderTokenId
+                    ]
+                ][memberTokenId];
+
+            // If the member has rations, then calculate the rewards for the member
+            if (rationsAmount > 0) {
+                uint256 reward = (_rewards * rationsAmount) / lootTotalRations;
+
+                // Increase the rewards for the member
+                WardenStorage.wardenStorage().lootMemberRewards[
+                    WardenStorage.wardenStorage().lootDistributors[
+                        _partyLeaderTokenId
+                    ]
+                ][memberTokenId] += reward;
+            }
         }
     }
 
@@ -468,45 +690,123 @@ contract WardenFacet is IWarden, IFacet {
         uint32 _partyLeaderTokenId,
         uint32 _partyMemberTokenId,
         uint256 _totalRations,
-        uint256 _memberRations
+        uint256 _memberRations,
+        address _token
     ) internal view returns (uint256) {
-        if (_memberRations == 0) {
-            return 0;
-        }
-
         address lootDistributor = WardenStorage
             .wardenStorage()
             .lootDistributors[_partyLeaderTokenId];
 
-        // Determines the share of the loot for the member based on their rations
-        uint256 lootsShare = (WardenStorage.wardenStorage().lootRewards[
-            lootDistributor
-        ] * _memberRations) / _totalRations;
+        if (_token == address(0)) {
+            uint256 pendingRewards = WardenStorage
+                .wardenStorage()
+                .lootMemberRewards[lootDistributor][_partyMemberTokenId];
 
-        uint256 rewardsOffset = WardenStorage.wardenStorage().lootRewardsOffset[
-            lootDistributor
-        ][_partyMemberTokenId];
+            if (_memberRations == 0) {
+                return pendingRewards;
+            }
 
-        // Reduce by the rewardsOffset - as they were only added to keep the share / rewards ratio the same when the member added their rations
+            if (_totalRations == 0) {
+                return pendingRewards;
+            }
 
-        // In the event tht rewardsOffset is higher than the actual reward, due to precision loss, just return 0
-        if (rewardsOffset > lootsShare) {
-            return 0;
+            uint256 lootRewards = WardenStorage.wardenStorage().lootRewards[
+                lootDistributor
+            ];
+
+            uint256 rewardsOffset = WardenStorage
+                .wardenStorage()
+                .lootRewardsOffset[lootDistributor][_partyMemberTokenId];
+
+            if (rewardsOffset > lootRewards) {
+                return pendingRewards;
+            }
+
+            // unseen rewards derived from other sources thats not from taxes
+            uint256 unseenRewards = lootRewards - rewardsOffset;
+
+            // Determines share of unseen rewards
+            uint256 userRewards = (unseenRewards * _memberRations) /
+                _totalRations;
+
+            return pendingRewards + userRewards;
+        } else {
+            uint256 tokenRewards = WardenStorage
+                .wardenStorage()
+                .lootMemberTokenRewards[lootDistributor][_token][
+                    _partyMemberTokenId
+                ];
+
+            if (_memberRations == 0) {
+                return tokenRewards;
+            }
+
+            if (_totalRations == 0) {
+                return tokenRewards;
+            }
+
+            uint256 lootTokenReward = WardenStorage
+                .wardenStorage()
+                .lootTokenRewards[lootDistributor][_token];
+
+            uint256 tokenOffset = WardenStorage
+                .wardenStorage()
+                .lootTokenRewardsOffset[lootDistributor][_token][
+                    _partyMemberTokenId
+                ];
+
+            if (tokenOffset > lootTokenReward) {
+                return tokenRewards;
+            }
+
+            uint256 unseenTokenRewards = lootTokenReward - tokenOffset;
+
+            uint256 userTokenRewards = (unseenTokenRewards * _memberRations) /
+                _totalRations;
+
+            return tokenRewards + userTokenRewards;
+        }
+    }
+
+    function _checkLootRationCountIndex(
+        address _lootDistributor
+    ) internal view returns (bool, uint256) {
+        uint256 lootRationCount = WardenStorage
+            .wardenStorage()
+            .lootRationHoldersCount[_lootDistributor];
+
+        if (lootRationCount != 0) {
+            // Checks the mapping for ration holders and get the index that has 0 holdings, so it can be overwritten
+            // We do this so that we don't have to keep track of holders with 0 holdings when updating
+            for (uint256 i = 0; i < lootRationCount; i++) {
+                uint32 memberTokenId = WardenStorage
+                    .wardenStorage()
+                    .lootRationHolder[_lootDistributor][i];
+
+                if (
+                    WardenStorage.wardenStorage().memberRationsAmount[
+                        _lootDistributor
+                    ][memberTokenId] == 0
+                ) {
+                    return (true, i);
+                }
+            }
         }
 
-        return lootsShare - rewardsOffset;
+        return (false, 0);
     }
 
     function _lootTransfer(
         uint32 _partyLeaderTokenId,
         uint256 _amount,
-        address _memberHandler
+        address _memberOwner,
+        address _token
     ) internal {
         address loot = WardenStorage.wardenStorage().lootDistributors[
             _partyLeaderTokenId
         ];
 
-        {
+        if (_token == address(0)) {
             uint256 balance = address(this).balance;
 
             ILoot(loot).lootTransfer(_amount);
@@ -518,8 +818,21 @@ contract WardenFacet is IWarden, IFacet {
                 "Warden: Invalid transfer"
             );
 
-            (bool success, ) = payable(_memberHandler).call{value: _amount}("");
+            (bool success, ) = payable(_memberOwner).call{value: _amount}("");
             require(success, "Native token transfer error");
+        } else {
+            uint256 balance = IERC20(_token).balanceOf(address(this));
+
+            ILoot(loot).lootTransferToken(_token, _amount);
+
+            uint256 balanceAfter = IERC20(_token).balanceOf(address(this));
+
+            require(
+                balanceAfter - balance >= _amount,
+                "Warden: Invalid transfer"
+            );
+
+            IERC20(_token).transfer(_memberOwner, _amount);
         }
     }
 
@@ -528,38 +841,29 @@ contract WardenFacet is IWarden, IFacet {
     //////////////////////////////////////////////////////////////*/
 
     function pluginSelectors() private pure returns (bytes4[] memory s) {
-        s = new bytes4[](31);
-        s[0] = IWarden.setParty.selector;
-        s[1] = IWarden.setChief.selector;
-        s[2] = IWarden.setRewarder.selector;
-        s[3] = IWarden.setRationPriceManager.selector;
-        s[4] = IWarden.setDiamondCutImplementation.selector;
-        s[5] = IWarden.setDiamondSafeholdFacet.selector;
-        s[6] = IWarden.setDiamondLootFacet.selector;
-        s[7] = IWarden.setDiamondOwnershipFacet.selector;
-        s[8] = IWarden.setDiamondPausableFacet.selector;
-        s[9] = IWarden.setDiamondLoupeFacet.selector;
-        s[10] = IWarden.pauseChief.selector;
-        s[11] = IWarden.unpauseChief.selector;
-        s[12] = IWarden.createSafehold.selector;
-        s[13] = IWarden.createLootDistributor.selector;
-        s[14] = IWarden.purchaseRation.selector;
-        s[15] = IWarden.sellRation.selector;
-        s[16] = IWarden.claimLoot.selector;
-        s[17] = IWarden.notifyReward.selector;
-        s[18] = IWarden.getRationPrice.selector;
-        s[19] = IWarden.getParty.selector;
-        s[20] = IWarden.getChief.selector;
-        s[21] = IWarden.getRewarder.selector;
-        s[22] = IWarden.getRationPriceManager.selector;
-        s[23] = IWarden.getDiamondCutImplementation.selector;
-        s[24] = IWarden.getDiamondSafeholdFacet.selector;
-        s[25] = IWarden.getDiamondLootFacet.selector;
-        s[26] = IWarden.getDiamondOwnershipFacet.selector;
-        s[27] = IWarden.getDiamondPausableFacet.selector;
-        s[28] = IWarden.getDiamondLoupeFacet.selector;
-        s[29] = IFacet.pluginMetadata.selector;
-        s[30] = IWarden.getLootEligible.selector;
+        s = new bytes4[](22);
+        s[0] = IWarden.purchaseRation.selector;
+        s[1] = IWarden.sellRation.selector;
+        s[2] = IWarden.claimLoot.selector;
+        s[3] = IWarden.notifyReward.selector;
+        s[4] = IWarden.getRationPrice.selector;
+        s[5] = IWarden.getParty.selector;
+        s[6] = IWarden.getChief.selector;
+        s[7] = IWarden.getRewarder.selector;
+        s[8] = IWarden.getRationPriceManager.selector;
+        s[9] = IWarden.getDiamondCutImplementation.selector;
+        s[10] = IWarden.getDiamondSafeholdFacet.selector;
+        s[11] = IWarden.getDiamondLootFacet.selector;
+        s[12] = IWarden.getDiamondOwnershipFacet.selector;
+        s[13] = IWarden.getDiamondPausableFacet.selector;
+        s[14] = IWarden.getDiamondLoupeFacet.selector;
+        s[15] = IFacet.pluginMetadata.selector;
+        s[16] = IWarden.getLootEligible.selector;
+        s[17] = IWarden.getLootEligibleToken.selector;
+        s[18] = IWarden.getMemberRations.selector;
+        s[19] = IWarden.getTotalRations.selector;
+        s[20] = IWarden.notifyRewardToken.selector;
+        s[21] = IWarden.claimLootToken.selector;
     }
 
     function pluginMetadata()

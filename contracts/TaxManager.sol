@@ -37,6 +37,8 @@ contract TaxManager is ITaxManager {
     uint256 public referralRewardsTax;
     ReferralRewardsFees public referralRewardsFees;
 
+    LeftoverReferralRewards public leftoverReferralRewards;
+
     modifier onlyCustodian() {
         require(msg.sender == custodian, "only custodian"); // need multiple admins
         _;
@@ -165,6 +167,18 @@ contract TaxManager is ITaxManager {
 
     function getPartyFees() external view returns (PartyFees memory) {
         return partyFees;
+    }
+
+    function leftoverPlatformRevenue() external view returns (uint256) {
+        return leftoverReferralRewards.leftoverPlatformRevenue;
+    }
+
+    function leftoverPlatformTreasury() external view returns (uint256) {
+        return leftoverReferralRewards.leftoverPlatformTreasury;
+    }
+
+    function leftoverMarketing() external view returns (uint256) {
+        return leftoverReferralRewards.leftoverMarketing;
     }
 
     //
@@ -307,6 +321,36 @@ contract TaxManager is ITaxManager {
         );
         referralRewardsFees.platformRevenue = _platformRevenue;
         referralRewardsFees.participationRewards = _participationRewards;
+    }
+
+    // Should add up to 100%
+    function setLeftoverReferralRewards(
+        uint256 _leftoverPlatformRevenue,
+        uint256 _leftoverPlatformTreasury,
+        uint256 _leftoverMarketing
+    )
+        external
+        onlyCustodian
+        validTaxRate(_leftoverPlatformRevenue)
+        validTaxRate(_leftoverPlatformTreasury)
+        validTaxRate(_leftoverMarketing)
+    {
+        require(platformRevenuePool != address(0), "Zero address");
+        require(platformTreasury != address(0), "Zero address");
+
+        require(
+            _leftoverPlatformRevenue +
+                _leftoverPlatformTreasury +
+                _leftoverMarketing <=
+                taxBaseDivisor,
+            "Tax rate too high"
+        );
+
+        leftoverReferralRewards
+            .leftoverPlatformRevenue = _leftoverPlatformRevenue;
+        leftoverReferralRewards
+            .leftoverPlatformTreasury = _leftoverPlatformTreasury;
+        leftoverReferralRewards.leftoverMarketing = _leftoverMarketing;
     }
 
     function recoverTokens(

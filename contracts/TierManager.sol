@@ -27,6 +27,7 @@ contract TierManager is ITierManager {
     mapping(uint256 => TierParameters) public tierUpConditions;
     mapping(uint256 => uint256) public rationLimits;
     mapping(uint256 => uint256) public transferLimits;
+    uint256 public partyLimit;
 
     modifier onlyMagistrate() {
         require(msg.sender == magistrate, "only magistrate");
@@ -69,6 +70,14 @@ contract TierManager is ITierManager {
 
     function getRationLimit(uint8 tier) external view returns (uint256) {
         return rationLimits[tier];
+    }
+
+    function setPartyLimit(uint256 limit) external onlyMagistrate {
+        partyLimit = limit;
+    }
+
+    function getPartyLimit() external view override returns (uint256) {
+        return partyLimit;
     }
 
     /**

@@ -19,6 +19,8 @@ contract DiamondWarden {
         address _contractOwner,
         address _diamondCutFacet,
         address _wardenFacet,
+        address _wardenAdminFacet,
+        address _wardenFactoryFacet,
         address _ownershipFacet,
         address _pausableFacet
     ) payable {
@@ -45,6 +47,30 @@ contract DiamondWarden {
             functionSelectors: wardenSelectors
         });
         LibDiamond.diamondCut(cutWarden, address(0), "");
+
+        // Add warden admin facet
+        IDiamondCut.FacetCut[]
+            memory cutWardenAdmin = new IDiamondCut.FacetCut[](1);
+        (bytes4[] memory wardenAdminSelectors, ) = IFacet(_wardenAdminFacet)
+            .pluginMetadata();
+        cutWardenAdmin[0] = IDiamondCut.FacetCut({
+            facetAddress: _wardenAdminFacet,
+            action: IDiamondCut.FacetCutAction.Add,
+            functionSelectors: wardenAdminSelectors
+        });
+        LibDiamond.diamondCut(cutWardenAdmin, address(0), "");
+
+        // Add warden factory facet
+        IDiamondCut.FacetCut[]
+            memory cutWardenFactory = new IDiamondCut.FacetCut[](1);
+        (bytes4[] memory wardenFactorySelectors, ) = IFacet(_wardenFactoryFacet)
+            .pluginMetadata();
+        cutWardenFactory[0] = IDiamondCut.FacetCut({
+            facetAddress: _wardenFactoryFacet,
+            action: IDiamondCut.FacetCutAction.Add,
+            functionSelectors: wardenFactorySelectors
+        });
+        LibDiamond.diamondCut(cutWardenFactory, address(0), "");
 
         // Add Ownership facet
         IDiamondCut.FacetCut[] memory cutOwnership = new IDiamondCut.FacetCut[](

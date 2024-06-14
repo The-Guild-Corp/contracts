@@ -378,6 +378,17 @@ contract NexusFacet is INexus, IFacet {
         }
     }
 
+    function notifyPartyRewardToken(
+        uint32 _tokenId,
+        address _token,
+        uint256 _reward
+    ) external onlyRewarder {
+        NexusStorage.StorageStruct storage s = NexusStorage.nexusStorage();
+        if (IParty(s.party).isPartiesEnabled()) {
+            IParty(s.party).notifyRewardToken(_tokenId, _token, _reward);
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                         internal-function
     //////////////////////////////////////////////////////////////*/
@@ -414,7 +425,7 @@ contract NexusFacet is INexus, IFacet {
     //////////////////////////////////////////////////////////////*/
 
     function pluginSelectors() private pure returns (bytes4[] memory s) {
-        s = new bytes4[](35);
+        s = new bytes4[](36);
         s[0] = NexusFacet.getGuardian.selector;
         s[1] = NexusFacet.getTierManager.selector;
         s[2] = NexusFacet.getTaxManager.selector;
@@ -450,6 +461,7 @@ contract NexusFacet is INexus, IFacet {
         s[32] = NexusFacet.getTokenIdFromUUID.selector;
         s[33] = NexusFacet.getHandlerFromUUID.selector;
         s[34] = NexusFacet.owner_addToReferrersAbove.selector;
+        s[35] = NexusFacet.notifyPartyRewardToken.selector;
     }
 
     function pluginMetadata()

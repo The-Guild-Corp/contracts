@@ -34,6 +34,12 @@ interface ITaxManager {
         uint256 participationRewards;
     }
 
+    struct LeftoverReferralRewards {
+        uint256 leftoverPlatformRevenue;
+        uint256 leftoverPlatformTreasury;
+        uint256 leftoverMarketing;
+    }
+
     function taxBaseDivisor() external view returns (uint256);
 
     function getSeekerTaxRate() external view returns (uint256);
@@ -65,6 +71,12 @@ interface ITaxManager {
     function disputeDepositRate() external view returns (uint256);
 
     function referralRewardsTax() external view returns (uint256);
+
+    function leftoverPlatformRevenue() external view returns (uint256);
+
+    function leftoverPlatformTreasury() external view returns (uint256);
+
+    function leftoverMarketing() external view returns (uint256);
 
     function getReferralRate(
         uint8 depth,

@@ -30,6 +30,8 @@ interface IParty {
 
     event RewardAdded(uint32 tokenId, uint256 amount);
 
+    event TokenRewardAdded(uint32 tokenId, address token, uint256 amount);
+
     /*//////////////////////////////////////////////////////////////
                                 Interface
     //////////////////////////////////////////////////////////////*/
@@ -62,6 +64,12 @@ interface IParty {
 
     function notifyReward(uint32 _tokenId, uint256 _amount) external;
 
+    function notifyRewardToken(
+        uint32 _tokenId,
+        address _token,
+        uint256 _amount
+    ) external;
+
     /*//////////////////////////////////////////////////////////////
                             read-functions
     //////////////////////////////////////////////////////////////*/
@@ -69,6 +77,12 @@ interface IParty {
     function getLootEligible(
         uint32 _partyLeaderTokenId,
         uint32 _partyMemberTokenId
+    ) external view returns (uint256);
+
+    function getLootEligibleToken(
+        uint32 _partyLeaderTokenId,
+        uint32 _partyMemberTokenId,
+        address _token
     ) external view returns (uint256);
 
     function getWarden() external view returns (address);
@@ -136,5 +150,11 @@ interface IParty {
     function claimLoot(
         uint32 _partyLeaderTokenId,
         uint32 _partyMemberTokenId
+    ) external;
+
+    function claimLootToken(
+        uint32 _partyLeaderTokenId,
+        uint32 _partyMemberTokenId,
+        address _token
     ) external;
 }

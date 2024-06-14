@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GNU AGPLv3
+pragma solidity 0.8.20;
+
+interface IWardenFactory {
+    /*//////////////////////////////////////////////////////////////
+                                Interface
+    //////////////////////////////////////////////////////////////*/
+
+    /*//////////////////////////////////////////////////////////////
+                                Only-Party
+    //////////////////////////////////////////////////////////////*/
+
+    function createSafehold(uint32 _tokenId) external returns (address);
+
+    function createLootDistributor(uint32 _tokenId) external returns (address);
+}

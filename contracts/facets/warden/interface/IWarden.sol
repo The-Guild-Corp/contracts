@@ -14,7 +14,6 @@ interface IWarden {
         uint32 leaderTokenId;
         uint32 memberTokenId;
         uint256 amount;
-        uint256 currentTotalRations;
         uint256 price;
         uint256 leaderRewardsTax;
         uint256 referralRewardsTax;
@@ -27,8 +26,6 @@ interface IWarden {
         uint32 leaderTokenId;
         uint32 memberTokenId;
         uint256 amount;
-        uint256 currentTotalRations;
-        uint256 currentMemberRations;
         uint256 price;
         uint256 leaderRewardsTax;
         uint256 referralRewardsTax;
@@ -39,46 +36,8 @@ interface IWarden {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                Only-Owner
-    //////////////////////////////////////////////////////////////*/
-
-    function setParty(address _party) external;
-
-    function setChief(address _chief) external;
-
-    function setRewarder(address _rewarder) external;
-
-    function setRationPriceManager(address _rationPriceManager) external;
-
-    function setDiamondCutImplementation(
-        address _diamondCutImplementation
-    ) external;
-
-    function setDiamondSafeholdFacet(address _diamondSafeholdFacet) external;
-
-    function setDiamondLootFacet(address _diamondLootFacet) external;
-
-    function setDiamondOwnershipFacet(address _diamondOwnershipFacet) external;
-
-    function setDiamondPausableFacet(address _diamondPausableFacet) external;
-
-    function setDiamondLoupeFacet(address _diamondLoupeFacet) external;
-
-    /*//////////////////////////////////////////////////////////////
-                                Only-Chief
-    //////////////////////////////////////////////////////////////*/
-
-    function pauseChief() external;
-
-    function unpauseChief() external;
-
-    /*//////////////////////////////////////////////////////////////
                                 Only-Party
     //////////////////////////////////////////////////////////////*/
-
-    function createSafehold(uint32 _tokenId) external returns (address);
-
-    function createLootDistributor(uint32 _tokenId) external returns (address);
 
     function purchaseRation(RationPurchase memory purchase) external payable;
 
@@ -87,22 +46,44 @@ interface IWarden {
     function claimLoot(
         uint32 _partyLeaderTokenId,
         uint32 _partyMemberTokenId,
-        address _memberHandler,
-        uint256 _totalRations,
-        uint256 _partyMemberRations
+        address _memberHandler
+    ) external returns (uint256);
+
+    function claimLootToken(
+        uint32 _partyLeaderTokenId,
+        uint32 _partyMemberTokenId,
+        address _token,
+        address _memberHandler
     ) external returns (uint256);
 
     function notifyReward(uint32 _tokenId, uint256 _amount) external;
+
+    function notifyRewardToken(
+        uint32 _tokenId,
+        address _token,
+        uint256 _amount
+    ) external;
 
     /*//////////////////////////////////////////////////////////////
                                 Read-Only
     //////////////////////////////////////////////////////////////*/
 
+    function getMemberRations(
+        uint32 _partyLeaderTokenId,
+        uint32 _partyMemberTokenId
+    ) external view returns (uint256);
+
+    function getTotalRations(uint32 _tokenId) external view returns (uint256);
+
     function getLootEligible(
         uint32 _partyLeaderTokenId,
+        uint32 _partyMemberTokenId
+    ) external view returns (uint256);
+
+    function getLootEligibleToken(
+        uint32 _partyLeaderTokenId,
         uint32 _partyMemberTokenId,
-        uint256 _totalRations,
-        uint256 _partyMemberRations
+        address _token
     ) external view returns (uint256);
 
     function getRationPrice(

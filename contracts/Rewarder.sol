@@ -252,14 +252,14 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
                 platformTreasuryTax
             );
 
-            // Shares tax distribution only supports native tokens for now
             if (party.isPartiesEnabled()) {
-                // If party is disabled, distribute shares tax to platform treasury
-                _processPayment(
-                    _taxManager.platformTreasury(),
-                    _token,
-                    sharesTax
+                address sharesTaxReceiver = party.getIdToLootDistributor(
+                    _solverId
                 );
+
+                nexus.notifyPartyRewardToken(_solverId, _token, sharesTax);
+
+                _processPayment(sharesTaxReceiver, _token, sharesTax);
             } else {
                 // If party is disabled, distribute shares tax to platform treasury
                 _processPayment(
@@ -368,7 +368,9 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
         if (party.isPartiesEnabled()) {
             // If party is enabled, distribute shares tax to party members (loot distributors)
             address sharesTaxReceiver = party.getIdToLootDistributor(_seekerId);
+
             nexus.notifyPartyReward(_seekerId, _sharesTax);
+
             _processPayment(sharesTaxReceiver, address(0), _sharesTax);
         } else {
             // If party is disabled, distribute shares tax to platform treasury
@@ -428,7 +430,12 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
 
         // Shares tax distribution only supports native tokens for now
         if (party.isPartiesEnabled()) {
-            _processPayment(taxManager.platformTreasury(), token, _sharesTax);
+            // If party is enabled, distribute shares tax to party members (loot distributors)
+            address sharesTaxReceiver = party.getIdToLootDistributor(_seekerId);
+
+            nexus.notifyPartyRewardToken(_seekerId, token, _sharesTax);
+
+            _processPayment(sharesTaxReceiver, token, _sharesTax);
         } else {
             // If party is disabled, distribute shares tax to platform treasury
             _processPayment(taxManager.platformTreasury(), token, _sharesTax);
@@ -518,7 +525,8 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
         // Rations Tax Distribution
 
         // Leader tax distribution
-        _processPayment(partyLeaderHandler, address(0), leaderRewardsTax);
+        address leaderWallet = IReferralHandler(partyLeaderHandler).nftOwner();
+        _processPayment(leaderWallet, address(0), leaderRewardsTax);
 
         // Referral tax distribution
         // Rewards referrers based on referral tax value from derived payment amount from Escrow
@@ -770,8 +778,21 @@ contract Rewarder is IRewarder, Pausable, ReentrancyGuard {
 
         // Leftover Tax allocation
         {
-            address referralTaxReceiver = taxManager.referralTaxTreasury();
-            _processPayment(referralTaxReceiver, token, leftTax);
+            address platformRevenue = taxManager.platformRevenuePool();
+            address platformTreasury = taxManager.platformTreasury();
+            address marketingTaxReceiver = taxManager.referralTaxTreasury();
+
+            uint256 leftoverPlatformRevenue = (leftTax *
+                taxManager.leftoverPlatformRevenue()) / taxDivisor;
+            uint256 leftoverPlatformTreasury = (leftTax *
+                taxManager.leftoverPlatformTreasury()) / taxDivisor;
+            uint256 leftoverMarketing = leftTax -
+                leftoverPlatformRevenue -
+                leftoverPlatformTreasury;
+
+            _processPayment(platformRevenue, token, leftoverPlatformRevenue);
+            _processPayment(platformTreasury, token, leftoverPlatformTreasury);
+            _processPayment(marketingTaxReceiver, token, leftoverMarketing);
         }
     }
 

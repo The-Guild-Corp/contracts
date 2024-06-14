@@ -38,7 +38,12 @@ interface IQuest {
         uint256 timestamp
     );
 
-    event RewardsReleased(uint32 seekerId, uint32 solverId, uint256 timestamp);
+    event RewardReceivedAndReleased(
+        uint32 seekerId,
+        uint32 solverId,
+        uint256 paymentAmount,
+        uint256 timestamp
+    );
 
     event RewardReceived(
         uint32 seekerId,

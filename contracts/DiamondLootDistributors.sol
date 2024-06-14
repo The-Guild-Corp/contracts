@@ -40,8 +40,8 @@ contract DiamondLootDistributors {
         IDiamondCut.FacetCut[] memory cutSafehold = new IDiamondCut.FacetCut[](
             1
         );
-        bytes4[] memory lootSelectors = new bytes4[](1);
-        lootSelectors[0] = ILoot.lootTransfer.selector;
+        (bytes4[] memory lootSelectors, ) = IFacet(_diamondLootFacet)
+            .pluginMetadata();
         cutSafehold[0] = IDiamondCut.FacetCut({
             facetAddress: _diamondLootFacet,
             action: IDiamondCut.FacetCutAction.Add,

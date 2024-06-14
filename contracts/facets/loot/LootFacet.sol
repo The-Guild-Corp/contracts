@@ -4,6 +4,8 @@ pragma solidity 0.8.20;
 import {IWarden} from "../warden/interface/IWarden.sol";
 import {LootStorage} from "./storage/LootStorage.sol";
 import {ILoot} from "./interface/ILoot.sol";
+import "@openzeppelin/contracts/interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract LootDistributorFacet is ILoot {
     /*//////////////////////////////////////////////////////////////
@@ -24,14 +26,22 @@ contract LootDistributorFacet is ILoot {
         return;
     }
 
+    function lootTransferToken(
+        address _token,
+        uint256 _amount
+    ) external onlyWarden {
+        IERC20(_token).transfer(msg.sender, _amount);
+        return;
+    }
+
     /*//////////////////////////////////////////////////////////////
                              IFacet
     //////////////////////////////////////////////////////////////*/
 
     function pluginSelectors() private pure returns (bytes4[] memory s) {
-        s = new bytes4[](1);
+        s = new bytes4[](2);
         s[0] = ILoot.lootTransfer.selector;
-        s[1] = LootDistributorFacet.pluginMetadata.selector;
+        s[1] = ILoot.lootTransferToken.selector;
     }
 
     function pluginMetadata()
